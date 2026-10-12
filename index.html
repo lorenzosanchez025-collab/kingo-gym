@@ -7,11 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: { extend: { colors: { brand: { neon: '#22c55e', dark: '#07090e', card: '#0f141f' } } } }
-        }
-    </script>
     <style>body { font-family: 'Inter', sans-serif; background-color: #07090e; color: #f1f5f9; }</style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 bg-[#07090e]">
@@ -23,7 +18,7 @@
         <h1 class="text-2xl font-black text-white">KINKO <span class="text-emerald-400">GYM</span></h1>
         <p class="text-xs text-slate-400">Control de Acceso Automático</p>
 
-        <!-- Formulario si no está vinculado -->
+        <!-- Formulario -->
         <div id="seccion-registro-qr" class="space-y-3 pt-2">
             <p class="text-xs text-slate-300">Ingresá tu DNI por <strong>única vez</strong> para vincular tu celular:</p>
             <input type="text" id="campo-dni-cliente" placeholder="Ej: 39123456" 
@@ -33,7 +28,7 @@
             </button>
         </div>
 
-        <!-- Resultado del Check-In -->
+        <!-- Resultado -->
         <div id="seccion-resultado-qr" class="hidden space-y-4 pt-2">
             <div id="icono-estado-qr" class="text-5xl"></div>
             <h4 id="titulo-resultado-qr" class="text-xl font-black"></h4>
@@ -50,7 +45,23 @@
         </div>
     </div>
 
-    <script>
+    <!-- SDK Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDn-l842mPzCnyUoDKPUdGVxmqoQ7ayZs",
+            authDomain: "kinko-gym.firebaseapp.com",
+            projectId: "kinko-gym",
+            storageBucket: "kinko-gym.appspot.com",
+            messagingSenderId: "300613845668",
+            appId: "1:300613845668:web:d62170d7a7aa8a1d0c5c31"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         document.addEventListener('DOMContentLoaded', () => {
             const dniCliente = localStorage.getItem('kinko_cliente_dni');
             if (dniCliente) {
@@ -59,59 +70,53 @@
             }
         });
 
-        function vincularYProcesarCheckIn() {
+        window.vincularYProcesarCheckIn = function() {
             const dniInput = document.getElementById('campo-dni-cliente').value.trim();
             if (!dniInput) { alert('Ingresá un DNI.'); return; }
             localStorage.setItem('kinko_cliente_dni', dniInput);
             document.getElementById('seccion-registro-qr').classList.add('hidden');
             ejecutarProcesoCheckIn(dniInput);
-        }
+        };
 
-        function desvincularDNICliente() {
+        window.desvincularDNICliente = function() {
             localStorage.removeItem('kinko_cliente_dni');
             document.getElementById('seccion-resultado-qr').classList.add('hidden');
             document.getElementById('seccion-registro-qr').classList.remove('hidden');
             document.getElementById('campo-dni-cliente').value = '';
-        }
+        };
 
-        function calcularVencimiento(fechaInicioStr, duracionMeses) {
-            const [ano, mes, dia] = fechaInicioStr.split('-').map(Number);
-            const fecha = new Date(ano, mes - 1, dia);
-            fecha.setMonth(fecha.getMonth() + parseInt(duracionMeses));
-            return fecha;
-        }
-
-        function formatearFecha(f) {
-            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()}`;
-        }
-
-        function ejecutarProcesoCheckIn(dni) {
-            const rawSocios = localStorage.getItem('kinko_gym_socios_v4');
-            const listaSocios = rawSocios ? JSON.parse(rawSocios) : [];
-            const socio = listaSocios.find(s => s.dni === dni);
-
+        async function ejecutarProcesoCheckIn(dni) {
             const secRes = document.getElementById('seccion-resultado-qr');
             const icono = document.getElementById('icono-estado-qr');
             const titulo = document.getElementById('titulo-resultado-qr');
             const mensaje = document.getElementById('mensaje-resultado-qr');
             
             secRes.classList.remove('hidden');
+            icono.innerHTML = '⏳';
+            titulo.innerText = 'Verificando...';
 
-            if (!socio) {
+            const q = query(collection(db, "socios"), where("dni", "==", dni));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
                 icono.innerHTML = '❌';
                 titulo.className = 'text-xl font-black text-rose-500';
                 titulo.innerText = 'Socio No Encontrado';
-                mensaje.innerText = 'El DNI no figura en KINKO GYM. Pasa por recepción.';
+                mensaje.innerText = 'El DNI no figura en KINKO GYM. Pasá por recepción.';
                 document.getElementById('card-socio-qr').classList.add('hidden');
                 return;
             }
 
-            const fVenc = calcularVencimiento(socio.fechaInicio, socio.duracionMeses);
+            const socio = querySnapshot.docs[0].data();
+            const [ano, mes, dia] = socio.fechaInicio.split('-').map(Number);
+            const fVenc = new Date(ano, mes - 1, dia);
+            fVenc.setMonth(fVenc.getMonth() + parseInt(socio.duracionMeses));
+
             const hoy = new Date(); hoy.setHours(0,0,0,0); fVenc.setHours(0,0,0,0);
 
             document.getElementById('card-socio-qr').classList.remove('hidden');
             document.getElementById('info-nombre-qr').innerText = socio.nombre;
-            document.getElementById('info-vencimiento-qr').innerText = formatearFecha(fVenc);
+            document.getElementById('info-vencimiento-qr').innerText = `${String(fVenc.getDate()).padStart(2, '0')}/${String(fVenc.getMonth()+1).padStart(2, '0')}/${fVenc.getFullYear()}`;
 
             if (fVenc < hoy) {
                 icono.innerHTML = '⚠️';
@@ -124,26 +129,13 @@
                 titulo.innerText = '¡Bienvenido/a!';
                 mensaje.innerText = 'Acceso concedido. ¡Buen entrenamiento!';
 
-                // Registrar asistencia para el admin
-                registrarAsistencia(socio);
+                await addDoc(collection(db, "asistencias"), {
+                    nombre: socio.nombre,
+                    dni: socio.dni,
+                    hora: new Date().toLocaleTimeString([], { hour: '2-2-digit', minute: '2-2-digit' }),
+                    fechaRaw: new Date().toISOString()
+                });
             }
-        }
-
-        function registrarAsistencia(socio) {
-            const raw = localStorage.getItem('kinko_gym_asistencias');
-            const asistencias = raw ? JSON.parse(raw) : [];
-            const horaActual = new Date().toLocaleTimeString([], { hour: '2-2-digit', minute: '2-2-digit' });
-            
-            // Evitar duplicados seguidos en menos de 1 minuto
-            if(asistencias.length > 0 && asistencias[0].dni === socio.dni) return;
-
-            asistencias.unshift({
-                id: Date.now().toString(),
-                nombre: socio.nombre,
-                dni: socio.dni,
-                hora: horaActual
-            });
-            localStorage.setItem('kinko_gym_asistencias', JSON.stringify(asistencias.slice(0, 30)));
         }
     </script>
 </body>
