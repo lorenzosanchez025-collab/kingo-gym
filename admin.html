@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KINKO GYM - Panel de Administración</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { brand: { neon: '#22c55e', dark: '#07090e', card: '#0f141f', border: '#1f293d' } },
+                    fontFamily: { heading: ['Montserrat', 'sans-serif'], body: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #07090e; color: #f1f5f9; }</style>
+</head>
+<body class="min-h-screen pb-12 flex flex-col bg-[#07090e] text-slate-100">
+
+    <header class="bg-[#0c0f17] border-b border-slate-800/80 shadow-2xl py-4 px-4 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-16 h-16 bg-slate-900 rounded-2xl p-1 border-2 border-emerald-500/80 flex items-center justify-center font-black text-emerald-400 text-xl">
+                    🐾
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black text-white">KINKO <span class="text-emerald-400">GYM</span> - ADMIN</h1>
+                    <p class="text-xs text-slate-400">Panel de Control de Recepción y Socios</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 bg-slate-900 p-2 rounded-2xl border border-slate-800 text-xs">
+                <div class="px-3 py-1 bg-[#07090e] rounded-xl text-center">
+                    <span class="block text-slate-400 text-[10px]">Socios</span>
+                    <span id="contador-total" class="text-white font-black text-base">0</span>
+                </div>
+                <div class="px-3 py-1 bg-[#07090e] rounded-xl text-center">
+                    <span class="block text-emerald-400 text-[10px]">Activos</span>
+                    <span id="contador-activos" class="text-emerald-400 font-black text-base">0</span>
+                </div>
+                <div class="px-3 py-1 bg-[#07090e] rounded-xl text-center">
+                    <span class="block text-rose-400 text-[10px]">Vencidos</span>
+                    <span id="contador-vencidos" class="text-rose-400 font-black text-base">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-8 space-y-8 flex-1 w-full">
+        <!-- Asistencias en Vivo -->
+        <section class="bg-[#0f141f] border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-qrcode text-emerald-400"></i> Check-Ins en Tiempo Real
+                </h2>
+                <button onclick="limpiarHistorialAsistencias()" class="text-xs text-slate-500 hover:text-rose-400">Limpiar</button>
+            </div>
+            <div id="lista-asistencias" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+        </section>
+
+        <!-- Formulario Nuevo Socio -->
+        <section class="bg-[#0f141f] border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <h2 class="text-lg font-extrabold text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-emerald-400"></i> Registrar Nuevo Socio
+            </h2>
+            <form id="formulario-socio" onsubmit="agregarSocio(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="lg:col-span-2">
+                    <label class="block text-xs text-slate-300 mb-1">Nombre y Apellido *</label>
+                    <input type="text" id="campo-nombre" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">DNI *</label>
+                    <input type="text" id="campo-dni" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Teléfono *</label>
+                    <input type="tel" id="campo-telefono" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Fecha Inicio *</label>
+                    <input type="date" id="campo-fecha-inicio" required class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Duración *</label>
+                    <select id="campo-duracion" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white">
+                        <option value="1">1 Mes</option>
+                        <option value="3">3 Meses</option>
+                        <option value="6">6 Meses</option>
+                        <option value="12">12 Meses</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-6 flex justify-end">
+                    <button type="submit" class="px-6 py-2.5 bg-emerald-500 text-slate-950 font-black rounded-xl text-sm hover:bg-emerald-400">Guardar Socio</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Tabla de Socios -->
+        <section class="bg-[#0f141f] border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                <i class="fa-solid fa-users text-emerald-400"></i> Planilla de Socios
+            </h2>
+            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-900 text-slate-400 font-bold uppercase">
+                        <tr>
+                            <th class="p-3">Socio / DNI</th>
+                            <th class="p-3">Teléfono</th>
+                            <th class="p-3">Vencimiento</th>
+                            <th class="p-3 text-center">Estado</th>
+                            <th class="p-3 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-tabla" class="divide-y divide-slate-800"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let listaSocios = [];
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('campo-fecha-inicio').value = new Date().toISOString().split('T')[0];
+            cargarSocios();
+            cargarAsistencias();
+        });
+
+        function cargarSocios() {
+            const guardados = localStorage.getItem('kinko_gym_socios_v4');
+            listaSocios = guardados ? JSON.parse(guardados) : [];
+            mostrarSocios();
+        }
+
+        function guardarEnStorage() {
+            localStorage.setItem('kinko_gym_socios_v4', JSON.stringify(listaSocios));
+        }
+
+        function calcularVencimiento(fechaInicioStr, duracionMeses) {
+            const [ano, mes, dia] = fechaInicioStr.split('-').map(Number);
+            const fecha = new Date(ano, mes - 1, dia);
+            fecha.setMonth(fecha.getMonth() + parseInt(duracionMeses));
+            return fecha;
+        }
+
+        function formatearFecha(f) {
+            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()}`;
+        }
+
+        function agregarSocio(e) {
+            e.preventDefault();
+            const nuevo = {
+                id: Date.now().toString(),
+                nombre: document.getElementById('campo-nombre').value.trim(),
+                dni: document.getElementById('campo-dni').value.trim(),
+                telefono: document.getElementById('campo-telefono').value.trim(),
+                fechaInicio: document.getElementById('campo-fecha-inicio').value,
+                duracionMeses: parseInt(document.getElementById('campo-duracion').value),
+                estadoPago: 'Pagado'
+            };
+            listaSocios.unshift(nuevo);
+            guardarEnStorage();
+            document.getElementById('formulario-socio').reset();
+            document.getElementById('campo-fecha-inicio').value = new Date().toISOString().split('T')[0];
+            mostrarSocios();
+        }
+
+        function eliminarSocio(id) {
+            if(confirm('¿Eliminar socio?')) {
+                listaSocios = listaSocios.filter(s => s.id !== id);
+                guardarEnStorage();
+                mostrarSocios();
+            }
+        }
+
+        function mostrarSocios() {
+            const tbody = document.getElementById('cuerpo-tabla');
+            tbody.innerHTML = '';
+            let activos = 0, vencidos = 0;
+            const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+            listaSocios.forEach(s => {
+                const fVenc = calcularVencimiento(s.fechaInicio, s.duracionMeses);
+                if (fVenc < hoy) vencidos++; else activos++;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-900/50">
+                        <td class="p-3"><strong>${s.nombre}</strong><br><span class="text-slate-400">DNI: ${s.dni}</span></td>
+                        <td class="p-3 text-slate-300">${s.telefono}</td>
+                        <td class="p-3">${formatearFecha(fVenc)}</td>
+                        <td class="p-3 text-center"><span class="px-2 py-1 rounded text-[10px] font-bold ${fVenc < hoy ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}">${fVenc < hoy ? 'Vencida' : 'Activa'}</span></td>
+                        <td class="p-3 text-center"><button onclick="eliminarSocio('${s.id}')" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `;
+            });
+            document.getElementById('contador-total').innerText = listaSocios.length;
+            document.getElementById('contador-activos').innerText = activos;
+            document.getElementById('contador-vencidos').innerText = vencidos;
+        }
+
+        function cargarAsistencias() {
+            const raw = localStorage.getItem('kinko_gym_asistencias');
+            const asistencias = raw ? JSON.parse(raw) : [];
+            const contenedor = document.getElementById('lista-asistencias');
+            if(asistencias.length === 0) {
+                contenedor.innerHTML = `<p class="text-xs text-slate-500 col-span-full py-2">No hay accesos recientes.</p>`;
+                return;
+            }
+            contenedor.innerHTML = asistencias.slice(0, 6).map(a => `
+                <div class="bg-slate-950 border border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                    <div><strong>${a.nombre}</strong><div class="text-[10px] text-slate-400">DNI: ${a.dni}</div></div>
+                    <span class="text-xs font-mono text-emerald-400 font-bold">${a.hora}</span>
+                </div>
+            `).join('');
+        }
+        function limpiarHistorialAsistencias() { localStorage.removeItem('kinko_gym_asistencias'); cargarAsistencias(); }
+    </script>
+</body>
+</html>

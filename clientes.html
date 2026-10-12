@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KINKO GYM - Check-In Socios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { brand: { neon: '#22c55e', dark: '#07090e', card: '#0f141f' } } } }
+        }
+    </script>
+    <style>body { font-family: 'Inter', sans-serif; background-color: #07090e; color: #f1f5f9; }</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 bg-[#07090e]">
+
+    <div class="max-w-md w-full bg-[#0f141f] border border-slate-800 rounded-3xl p-6 text-center shadow-2xl space-y-4">
+        <div class="w-20 h-20 mx-auto bg-slate-900 rounded-2xl p-1 border-2 border-emerald-500/80 shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center text-3xl">
+            🐾
+        </div>
+        <h1 class="text-2xl font-black text-white">KINKO <span class="text-emerald-400">GYM</span></h1>
+        <p class="text-xs text-slate-400">Control de Acceso Automático</p>
+
+        <!-- Formulario si no está vinculado -->
+        <div id="seccion-registro-qr" class="space-y-3 pt-2">
+            <p class="text-xs text-slate-300">Ingresá tu DNI por <strong>única vez</strong> para vincular tu celular:</p>
+            <input type="text" id="campo-dni-cliente" placeholder="Ej: 39123456" 
+                   class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-center text-lg font-bold text-white focus:outline-none focus:border-emerald-500">
+            <button onclick="vincularYProcesarCheckIn()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm transition shadow-lg shadow-emerald-950">
+                Registrar Entrada / Check-In
+            </button>
+        </div>
+
+        <!-- Resultado del Check-In -->
+        <div id="seccion-resultado-qr" class="hidden space-y-4 pt-2">
+            <div id="icono-estado-qr" class="text-5xl"></div>
+            <h4 id="titulo-resultado-qr" class="text-xl font-black"></h4>
+            <p id="mensaje-resultado-qr" class="text-sm text-slate-300"></p>
+            
+            <div id="card-socio-qr" class="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
+                <div class="flex justify-between"><span class="text-slate-400">Socio:</span><span id="info-nombre-qr" class="font-bold text-white"></span></div>
+                <div class="flex justify-between"><span class="text-slate-400">Vencimiento:</span><span id="info-vencimiento-qr" class="font-bold text-white"></span></div>
+            </div>
+
+            <button onclick="desvincularDNICliente()" class="text-[11px] text-slate-500 underline hover:text-slate-300 block mx-auto">
+                ¿No sos vos? Cambiar DNI vinculado
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dniCliente = localStorage.getItem('kinko_cliente_dni');
+            if (dniCliente) {
+                document.getElementById('seccion-registro-qr').classList.add('hidden');
+                ejecutarProcesoCheckIn(dniCliente);
+            }
+        });
+
+        function vincularYProcesarCheckIn() {
+            const dniInput = document.getElementById('campo-dni-cliente').value.trim();
+            if (!dniInput) { alert('Ingresá un DNI.'); return; }
+            localStorage.setItem('kinko_cliente_dni', dniInput);
+            document.getElementById('seccion-registro-qr').classList.add('hidden');
+            ejecutarProcesoCheckIn(dniInput);
+        }
+
+        function desvincularDNICliente() {
+            localStorage.removeItem('kinko_cliente_dni');
+            document.getElementById('seccion-resultado-qr').classList.add('hidden');
+            document.getElementById('seccion-registro-qr').classList.remove('hidden');
+            document.getElementById('campo-dni-cliente').value = '';
+        }
+
+        function calcularVencimiento(fechaInicioStr, duracionMeses) {
+            const [ano, mes, dia] = fechaInicioStr.split('-').map(Number);
+            const fecha = new Date(ano, mes - 1, dia);
+            fecha.setMonth(fecha.getMonth() + parseInt(duracionMeses));
+            return fecha;
+        }
+
+        function formatearFecha(f) {
+            return `${String(f.getDate()).padStart(2, '0')}/${String(f.getMonth() + 1).padStart(2, '0')}/${f.getFullYear()}`;
+        }
+
+        function ejecutarProcesoCheckIn(dni) {
+            const rawSocios = localStorage.getItem('kinko_gym_socios_v4');
+            const listaSocios = rawSocios ? JSON.parse(rawSocios) : [];
+            const socio = listaSocios.find(s => s.dni === dni);
+
+            const secRes = document.getElementById('seccion-resultado-qr');
+            const icono = document.getElementById('icono-estado-qr');
+            const titulo = document.getElementById('titulo-resultado-qr');
+            const mensaje = document.getElementById('mensaje-resultado-qr');
+            
+            secRes.classList.remove('hidden');
+
+            if (!socio) {
+                icono.innerHTML = '❌';
+                titulo.className = 'text-xl font-black text-rose-500';
+                titulo.innerText = 'Socio No Encontrado';
+                mensaje.innerText = 'El DNI no figura en KINKO GYM. Pasa por recepción.';
+                document.getElementById('card-socio-qr').classList.add('hidden');
+                return;
+            }
+
+            const fVenc = calcularVencimiento(socio.fechaInicio, socio.duracionMeses);
+            const hoy = new Date(); hoy.setHours(0,0,0,0); fVenc.setHours(0,0,0,0);
+
+            document.getElementById('card-socio-qr').classList.remove('hidden');
+            document.getElementById('info-nombre-qr').innerText = socio.nombre;
+            document.getElementById('info-vencimiento-qr').innerText = formatearFecha(fVenc);
+
+            if (fVenc < hoy) {
+                icono.innerHTML = '⚠️';
+                titulo.className = 'text-xl font-black text-amber-500';
+                titulo.innerText = 'Membresía Vencida';
+                mensaje.innerText = 'Tu cuota está vencida. Regularizá tu situación en recepción.';
+            } else {
+                icono.innerHTML = '✅';
+                titulo.className = 'text-xl font-black text-emerald-400';
+                titulo.innerText = '¡Bienvenido/a!';
+                mensaje.innerText = 'Acceso concedido. ¡Buen entrenamiento!';
+
+                // Registrar asistencia para el admin
+                registrarAsistencia(socio);
+            }
+        }
+
+        function registrarAsistencia(socio) {
+            const raw = localStorage.getItem('kinko_gym_asistencias');
+            const asistencias = raw ? JSON.parse(raw) : [];
+            const horaActual = new Date().toLocaleTimeString([], { hour: '2-2-digit', minute: '2-2-digit' });
+            
+            // Evitar duplicados seguidos en menos de 1 minuto
+            if(asistencias.length > 0 && asistencias[0].dni === socio.dni) return;
+
+            asistencias.unshift({
+                id: Date.now().toString(),
+                nombre: socio.nombre,
+                dni: socio.dni,
+                hora: horaActual
+            });
+            localStorage.setItem('kinko_gym_asistencias', JSON.stringify(asistencias.slice(0, 30)));
+        }
+    </script>
+</body>
+</html>
